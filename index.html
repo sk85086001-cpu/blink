@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#060b0d" />
+  <title>LED 행사 전광판</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Orbitron:wght@400;700;900&display=swap');
+
+    :root {
+      --bg-color: #060b0d;
+      --panel-bg: rgba(18, 25, 30, 0.86);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text-color: #a7ff5c;
+      --accent-color: #46f0ff;
+      --shadow-color: rgba(97, 255, 152, 0.65);
+      --speed: 90;
+      --font-size: 132;
+      --panel-width: 380px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-color);
+      color: #fff;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 20% 20%, rgba(70, 240, 255, 0.1), transparent 22%),
+        radial-gradient(circle at 80% 30%, rgba(167, 255, 92, 0.10), transparent 24%),
+        var(--bg-color);
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-color);
+    }
+
+    .screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)),
+        repeating-linear-gradient(
+          180deg,
+          rgba(255,255,255,0.12) 0,
+          rgba(255,255,255,0.12) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.04);
+      isolation: isolate;
+    }
+
+    .screen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.02), transparent 9%, transparent 91%, rgba(255,255,255,0.02)),
+        linear-gradient(180deg, rgba(255,255,255,0.06), transparent 10%, transparent 90%, rgba(255,255,255,0.06));
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .screen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.05),
+        rgba(255,255,255,0.05) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .marquee-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      z-index: 3;
+    }
+
+    .marquee-track {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      will-change: transform;
+      text-shadow:
+        0 0 8px var(--shadow-color),
+        0 0 18px var(--shadow-color),
+        0 0 26px rgba(255,255,255,0.2);
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.12));
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .marquee-track span {
+      display: inline-block;
+      color: var(--text-color);
+      font-size: var(--font-size)px;
+      letter-spacing: 0.04em;
+      font-weight: 900;
+      line-height: 1;
+      font-family: var(--font-family, 'Orbitron', sans-serif);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .panel-toggle {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 20;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(12, 17, 20, 0.7);
+      color: white;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.26);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .panel-toggle:hover {
+      transform: translateY(-1px);
+      border-color: rgba(70, 240, 255, 0.45);
+    }
+
+    .panel-toggle:active {
+      transform: translateY(0);
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 15;
+      width: min(var(--panel-width), calc(100vw - 24px));
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      padding: 18px 18px 16px;
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+      transform: translateX(0);
+      opacity: 1;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    .control-panel.hidden {
+      transform: translateX(calc(100% + 30px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .control-panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+      color: #edf7ff;
+    }
+
+    .section {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .section:first-of-type {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .field,
+    .field-row {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.8);
+    }
+
+    input[type="text"],
+    textarea,
+    select,
+    input[type="color"] {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      color: white;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-color);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #34d3ff, #72ffb0);
+      color: #04151a;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.08);
+      color: #f2fbff;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .message-list {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .message-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .message-item:hover {
+      border-color: rgba(70, 240, 255, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .message-item.active {
+      border-color: rgba(114, 255, 176, 0.75);
+      background: rgba(114, 255, 176, 0.08);
+    }
+
+    .message-item .text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.9rem;
+      color: white;
+    }
+
+    .message-item .delete {
+      background: transparent;
+      color: #ff9a9a;
+      border: none;
+      font-weight: 700;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .mini-note {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.62);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* ========================
+       배경 애니메이션 정의
+       ======================== */
+    .particle-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    /* 별빛 배경 */
+    .particle.star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 3s infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* 색종이 배경 */
+    .particle.confetti {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #ff1493;
+      animation-name: confetti-fall;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% { transform: translateY(0) translateX(0) rotateZ(0deg); opacity: 1; }
+      25% { transform: translateY(25vh) translateX(40px) rotateZ(90deg); }
+      50% { transform: translateY(50vh) translateX(0) rotateZ(180deg); }
+      75% { transform: translateY(75vh) translateX(-40px) rotateZ(270deg); }
+      100% { transform: translateY(100vh) translateX(0) rotateZ(360deg); opacity: 0; }
+    }
+
+    /* 꽃잎 배경 */
+    .particle.petal {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #ffb6d9;
+      border-radius: 50% 0;
+      animation-name: petal-fall;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+    }
+
+    @keyframes petal-fall {
+      0% { transform: translateY(0) rotateZ(0deg); opacity: 1; }
+      25% { transform: translateY(25vh) translateX(30px) rotateZ(180deg); }
+      50% { transform: translateY(50vh) rotateZ(360deg); }
+      75% { transform: translateY(75vh) translateX(-30px) rotateZ(540deg); }
+      100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; }
+    }
+
+    /* 폭죽 배경 */
+    .particle.firework {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: radial-gradient(circle, #ffff00, #ff6600);
+      border-radius: 50%;
+      animation: firework-burst 1.5s ease-out forwards;
+    }
+
+    @keyframes firework-burst {
+      0% { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--tx, 0), var(--ty, 0)) scale(0); }
+    }
+
+    /* 함박눈 배경 */
+    .particle.snowflake {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      animation-name: snow-fall;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+      opacity: 0.8;
+    }
+
+    @keyframes snow-fall {
+      to { transform: translateY(100vh) translateX(20px); opacity: 0; }
+    }
+
+    @media (max-width: 700px) {
+      .control-panel {
+        width: min(92vw, 360px);
+      }
+
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 모바일 가로 화면 (Landscape Mode) */
+    @media (max-height: 600px) and (orientation: landscape) {
+      /* 글자 크기 자동 감소 */
+      .marquee-track span {
+        font-size: clamp(40px, 12vh, 120px) !important;
+      }
+
+      /* 설정 패널 높이 조정 */
+      .control-panel {
+        max-height: calc(100vh - 20px);
+        width: min(45vw, 500px);
+      }
+
+      /* 버튼 크기 감소 */
+      .panel-toggle {
+        width: 42px;
+        height: 42px;
+        font-size: 1.2rem;
+      }
+
+      /* 설정 패널 글자 크기 */
+      .control-panel h2 {
+        font-size: 0.95rem;
+      }
+
+      label,
+      .mini-note {
+        font-size: 0.75rem;
+      }
+
+      input[type="text"],
+      textarea,
+      select,
+      input[type="color"] {
+        font-size: 0.85rem;
+        padding: 8px 10px;
+      }
+
+      textarea {
+        min-height: 60px;
+      }
+
+      button {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 화면 영역: 실제 전광판이 보이는 부분 -->
+    <div class="screen" id="screen">
+      <!-- 배경 애니메이션 컨테이너 -->
+      <div id="particleContainer" class="particle-container"></div>
+      
+      <div class="marquee-wrap">
+        <div class="marquee-track" id="marqueeTrack" aria-live="polite">
+          <span id="marqueeText">축하합니다!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 설정 패널 토글 버튼 -->
+    <button id="togglePanelBtn" class="panel-toggle" type="button" aria-label="설정 열기/닫기">⚙</button>
+
+    <!-- 설정 패널 -->
+    <aside id="controlPanel" class="control-panel hidden" aria-label="설정 패널">
+      <h2>전광판 설정</h2>
+
+      <div class="section">
+        <div class="field">
+          <label for="fontStyle">글꼴 스타일</label>
+          <select id="fontStyle">
+            <option value="Orbitron, sans-serif">LED 도트 매트릭스</option>
+            <option value="'Black Han Sans', 'Malgun Gothic', sans-serif">굵은 산세리프</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="fontSizeRange">글자 크기: <span id="fontSizeValue">132</span>px</label>
+          <input id="fontSizeRange" type="range" min="60" max="220" value="132" />
+        </div>
+
+        <div class="field">
+          <label for="speedRange">스크롤 속도: <span id="speedValue">90</span></label>
+          <input id="speedRange" type="range" min="20" max="220" value="90" />
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="textColor">글자색</label>
+            <input id="textColor" type="color" value="#a7ff5c" />
+          </div>
+          <div>
+            <label for="bgColor">배경색</label>
+            <input id="bgColor" type="color" value="#060b0d" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="direction">방향</label>
+            <select id="direction">
+              <option value="left">우 → 좌</option>
+              <option value="right">좌 → 우</option>
+            </select>
+          </div>
+          <div>
+            <label for="fullscreenBtn">화면</label>
+            <button id="fullscreenBtn" class="secondary" type="button">전체화면</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="bgAnimation">배경 효과</label>
+          <select id="bgAnimation">
+            <option value="none">없음</option>
+            <option value="stars">별빛</option>
+            <option value="confetti">색종이</option>
+            <option value="petals">꽃잎</option>
+            <option value="fireworks">폭죽</option>
+            <option value="snow">함박눈</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <label for="messageInput">메시지 입력</label>
+        <textarea id="messageInput" placeholder="축하합니다! 행사 시작을 알립니다.">축하합니다!</textarea>
+        <div class="button-row" style="margin-top: 10px;">
+          <button id="applyMessageBtn" type="button">현재 메시지 적용</button>
+          <button id="addMessageBtn" class="secondary" type="button">목록에 추가</button>
+        </div>
+        <p class="mini-note">입력창에 문자를 바로 쓰면 실시간 미리보기가 반영됩니다. 이모지와 특수문자도 사용 가능합니다.</p>
+      </div>
+
+      <div class="section">
+        <label>메시지 목록</label>
+        <div id="messageList" class="message-list" aria-live="polite"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // =========================
+    // 전광판 설정 및 상태 관리
+    // =========================
+    const STORAGE_KEYS = {
+      settings: 'ledBoardSettings',
+      messages: 'ledBoardMessages'
+    };
+
+    const defaultSettings = {
+      fontStyle: "Orbitron, sans-serif",
+      fontSize: 132,
+      speed: 90,
+      textColor: '#a7ff5c',
+      bgColor: '#060b0d',
+      direction: 'left',
+      bgAnimation: 'none'
+    };
+
+    const defaultMessages = ['축하합니다!', '행사에 오신 것을 환영합니다!', '좋은 시간 되세요!'];
+
+    const state = {
+      settings: loadSettings(),
+      messages: loadMessages(),
+      activeIndex: 0,
+      panelOpen: false,
+      currentX: 0,
+      lastTime: 0,
+      rotationTimer: null,
+      particleGeneratorTimer: null
+    };
+
+    const els = {
+      screen: document.getElementById('screen'),
+      marqueeTrack: document.getElementById('marqueeTrack'),
+      marqueeText: document.getElementById('marqueeText'),
+      togglePanelBtn: document.getElementById('togglePanelBtn'),
+      controlPanel: document.getElementById('controlPanel'),
+      messageInput: document.getElementById('messageInput'),
+      applyMessageBtn: document.getElementById('applyMessageBtn'),
+      addMessageBtn: document.getElementById('addMessageBtn'),
+      fullscreenBtn: document.getElementById('fullscreenBtn'),
+      messageList: document.getElementById('messageList'),
+      fontStyle: document.getElementById('fontStyle'),
+      fontSizeRange: document.getElementById('fontSizeRange'),
+      fontSizeValue: document.getElementById('fontSizeValue'),
+      speedRange: document.getElementById('speedRange'),
+      speedValue: document.getElementById('speedValue'),
+      textColor: document.getElementById('textColor'),
+      bgColor: document.getElementById('bgColor'),
+      direction: document.getElementById('direction'),
+      bgAnimation: document.getElementById('bgAnimation'),
+      particleContainer: document.getElementById('particleContainer')
+    };
+
+    function loadSettings() {
+      const saved = localStorage.getItem(STORAGE_KEYS.settings);
+      if (!saved) return { ...defaultSettings };
+      try {
+        return { ...defaultSettings, ...JSON.parse(saved) };
+      } catch (error) {
+        return { ...defaultSettings };
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+    }
+
+    function loadMessages() {
+      const saved = localStorage.getItem(STORAGE_KEYS.messages);
+      if (!saved) return [...defaultMessages];
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) && parsed.length ? parsed.filter(Boolean) : [...defaultMessages];
+      } catch (error) {
+        return [...defaultMessages];
+      }
+    }
+
+    function saveMessages() {
+      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(state.messages));
+    }
+
+    function readQueryMessages() {
+      const params = new URLSearchParams(window.location.search);
+      const queryTexts = params.getAll('text');
+      if (queryTexts.length) {
+        const cleaned = queryTexts.map(item => item.trim()).filter(Boolean);
+        if (cleaned.length) {
+          state.messages = cleaned;
+          state.activeIndex = 0;
+          saveMessages();
+        }
+      }
+    }
+
+    function getActiveMessage() {
+      if (!state.messages.length) return '';
+      return state.messages[state.activeIndex] || state.messages[0];
+    }
+
+    function updatePanelStatus() {
+      els.controlPanel.classList.toggle('hidden', !state.panelOpen);
+      els.togglePanelBtn.textContent = state.panelOpen ? '✕' : '⚙';
+      els.togglePanelBtn.setAttribute('aria-label', state.panelOpen ? '설정 닫기' : '설정 열기');
+    }
+
+    function applySettingsToUI() {
+      els.fontStyle.value = state.settings.fontStyle;
+      els.fontSizeRange.value = state.settings.fontSize;
+      els.fontSizeValue.textContent = state.settings.fontSize;
+      els.speedRange.value = state.settings.speed;
+      els.speedValue.textContent = state.settings.speed;
+      els.textColor.value = state.settings.textColor;
+      els.bgColor.value = state.settings.bgColor;
+      els.direction.value = state.settings.direction;
+      els.bgAnimation.value = state.settings.bgAnimation;
+
+      document.documentElement.style.setProperty('--font-family', state.settings.fontStyle);
+      document.documentElement.style.setProperty('--font-size', String(state.settings.fontSize));
+      document.documentElement.style.setProperty('--text-color', state.settings.textColor);
+      document.documentElement.style.setProperty('--bg-color', state.settings.bgColor);
+      document.documentElement.style.setProperty('--speed', String(state.settings.speed));
+
+      document.body.style.background = `radial-gradient(circle at 20% 20%, rgba(70, 240, 255, 0.1), transparent 22%), radial-gradient(circle at 80% 30%, rgba(167, 255, 92, 0.10), transparent 24%), ${state.settings.bgColor}`;
+    }
+
+    function renderMessageList() {
+      els.messageList.innerHTML = '';
+
+      if (!state.messages.length) {
+        const empty = document.createElement('div');
+        empty.className = 'mini-note';
+        empty.textContent = '등록된 메시지가 없습니다.';
+        els.messageList.appendChild(empty);
+        return;
+      }
+
+      state.messages.forEach((message, index) => {
+        const item = document.createElement('div');
+        item.className = 'message-item' + (index === state.activeIndex ? ' active' : '');
+
+        const text = document.createElement('div');
+        text.className = 'text';
+        text.textContent = message;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete';
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = '×';
+        deleteBtn.title = '삭제';
+
+        item.addEventListener('click', () => {
+          state.activeIndex = index;
+          updateActiveMessageUI();
+          renderMessageList();
+        });
+
+        deleteBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          removeMessage(index);
+        });
+
+        item.appendChild(text);
+        item.appendChild(deleteBtn);
+        els.messageList.appendChild(item);
+      });
+    }
+
+    function updateActiveMessageUI() {
+      const currentText = getActiveMessage();
+      els.messageInput.value = currentText;
+      updateMarqueeText();
+    }
+
+    function updateMarqueeText() {
+      const activeText = getActiveMessage();
+      const repeatedText = `${activeText}   ${activeText}   ${activeText}`;
+      els.marqueeText.textContent = repeatedText;
+      els.marqueeText.style.fontFamily = state.settings.fontStyle;
+      els.marqueeText.style.color = state.settings.textColor;
+      els.marqueeText.style.fontSize = `${state.settings.fontSize}px`;
+    }
+
+    function addMessage() {
+      const text = els.messageInput.value.trim();
+      if (!text) return;
+
+      state.messages.push(text);
+      state.activeIndex = state.messages.length - 1;
+      saveMessages();
+      renderMessageList();
+      updateActiveMessageUI();
+    }
+
+    function removeMessage(index) {
+      if (state.messages.length <= 1) {
+        state.messages = ['축하합니다!'];
+      } else {
+        state.messages.splice(index, 1);
+      }
+
+      state.activeIndex = Math.min(state.activeIndex, state.messages.length - 1);
+      saveMessages();
+      renderMessageList();
+      updateActiveMessageUI();
+    }
+
+    function applyCurrentMessage() {
+      const text = els.messageInput.value.trim();
+      if (!text) return;
+      state.messages[state.activeIndex] = text;
+      saveMessages();
+      renderMessageList();
+      updateActiveMessageUI();
+    }
+
+    function cycleMessage() {
+      if (!state.messages.length) return;
+      state.activeIndex = (state.activeIndex + 1) % state.messages.length;
+      updateActiveMessageUI();
+      renderMessageList();
+    }
+
+    function startRotationTimer() {
+      clearInterval(state.rotationTimer);
+      state.rotationTimer = setInterval(() => {
+        if (!state.panelOpen && state.messages.length > 1) {
+          cycleMessage();
+        }
+      }, 3500);
+    }
+
+    function togglePanel() {
+      state.panelOpen = !state.panelOpen;
+      updatePanelStatus();
+      if (!state.panelOpen) {
+        startRotationTimer();
+      }
+    }
+
+    // ========================
+    // 배경 애니메이션 함수들
+    // ========================
+    function clearParticles() {
+      els.particleContainer.innerHTML = '';
+      if (state.particleGeneratorTimer) {
+        clearInterval(state.particleGeneratorTimer);
+        state.particleGeneratorTimer = null;
+      }
+    }
+
+    function createParticle(type) {
+      const particle = document.createElement('div');
+      particle.className = `particle ${type}`;
+      const randomLeft = Math.random() * 100;
+      const randomDelay = Math.random() * 2;
+      
+      if (type === 'star') {
+        // 별빛은 화면 전체에 무작위 위치로 생성
+        particle.style.left = randomLeft + '%';
+        particle.style.top = (Math.random() * 100) + '%';
+        particle.style.animationDelay = Math.random() * 3 + 's';
+        particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+      } else {
+        // 색종이, 꽃잎, 눈은 위에서 아래로 떨어짐
+        particle.style.left = randomLeft + '%';
+        particle.style.top = '-20px';
+        
+        if (type === 'confetti') {
+          particle.style.animationDelay = randomDelay + 's';
+          particle.style.animationDuration = (6 + Math.random() * 4) + 's';
+        } else if (type === 'petal') {
+          particle.style.animationDelay = randomDelay + 's';
+          particle.style.animationDuration = (8 + Math.random() * 4) + 's';
+        } else if (type === 'snowflake') {
+          particle.style.animationDelay = randomDelay + 's';
+          particle.style.animationDuration = (10 + Math.random() * 4) + 's';
+        }
+      }
+      
+      els.particleContainer.appendChild(particle);
+    }
+
+    function createFirework() {
+      const x = Math.random() * window.innerWidth;
+      const y = Math.random() * window.innerHeight * 0.6;
+      const particleCount = 12;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2;
+        const distance = 60 + Math.random() * 60;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        
+        const particle = document.createElement('div');
+        particle.className = 'particle firework';
+        particle.style.left = x + 'px';
+        particle.style.top = y + 'px';
+        particle.style.setProperty('--tx', tx + 'px');
+        particle.style.setProperty('--ty', ty + 'px');
+        particle.style.animationDelay = (Math.random() * 0.3) + 's';
+        
+        els.particleContainer.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 2000);
+      }
+    }
+
+    function startStarAnimation() {
+      clearParticles();
+      for (let i = 0; i < 40; i++) {
+        createParticle('star');
+      }
+    }
+
+    function startConfettiAnimation() {
+      clearParticles();
+      state.particleGeneratorTimer = setInterval(() => {
+        createParticle('confetti');
+      }, 150);
+    }
+
+    function startPetalAnimation() {
+      clearParticles();
+      state.particleGeneratorTimer = setInterval(() => {
+        createParticle('petal');
+      }, 200);
+    }
+
+    function startFireworksAnimation() {
+      clearParticles();
+      state.particleGeneratorTimer = setInterval(() => {
+        createFirework();
+      }, 800);
+    }
+
+    function startSnowAnimation() {
+      clearParticles();
+      state.particleGeneratorTimer = setInterval(() => {
+        createParticle('snowflake');
+      }, 100);
+    }
+
+    function updateBackgroundAnimation() {
+      const animationType = state.settings.bgAnimation;
+      
+      switch(animationType) {
+        case 'stars':
+          startStarAnimation();
+          break;
+        case 'confetti':
+          startConfettiAnimation();
+          break;
+        case 'petals':
+          startPetalAnimation();
+          break;
+        case 'fireworks':
+          startFireworksAnimation();
+          break;
+        case 'snow':
+          startSnowAnimation();
+          break;
+        default:
+          clearParticles();
+      }
+    }
+
+    function updateAnimationFrame(timestamp) {
+      if (!state.lastTime) state.lastTime = timestamp;
+      const delta = (timestamp - state.lastTime) / 1000;
+      state.lastTime = timestamp;
+
+      const trackWidth = els.marqueeText.offsetWidth || 1;
+      const speed = state.settings.speed || 90;
+      const direction = state.settings.direction || 'left';
+
+      if (direction === 'left') {
+        state.currentX -= speed * delta * 1.4;
+        if (state.currentX <= -(trackWidth / 3)) {
+          state.currentX = 0;
+        }
+      } else {
+        state.currentX += speed * delta * 1.4;
+        if (state.currentX >= trackWidth / 3) {
+          state.currentX = 0;
+        }
+      }
+
+      els.marqueeTrack.style.transform = `translate(${state.currentX}px, -50%)`;
+      requestAnimationFrame(updateAnimationFrame);
+    }
+
+    function handleKeydown(event) {
+      const tag = document.activeElement && document.activeElement.tagName;
+      const typingField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      if (event.code === 'Space' && !typingField) {
+        event.preventDefault();
+        togglePanel();
+      }
+
+      if (event.key === 'Escape') {
+        state.panelOpen = false;
+        updatePanelStatus();
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        applyCurrentMessage();
+      }
+
+      if (!typingField && event.key === 'ArrowRight') {
+        cycleMessage();
+      }
+    }
+
+    function bindEvents() {
+      els.togglePanelBtn.addEventListener('click', togglePanel);
+
+      els.fontStyle.addEventListener('change', (event) => {
+        state.settings.fontStyle = event.target.value;
+        saveSettings();
+        applySettingsToUI();
+        updateMarqueeText();
+      });
+
+      els.fontSizeRange.addEventListener('input', (event) => {
+        state.settings.fontSize = Number(event.target.value);
+        saveSettings();
+        applySettingsToUI();
+        updateMarqueeText();
+      });
+
+      els.speedRange.addEventListener('input', (event) => {
+        state.settings.speed = Number(event.target.value);
+        saveSettings();
+        applySettingsToUI();
+      });
+
+      els.textColor.addEventListener('input', (event) => {
+        state.settings.textColor = event.target.value;
+        saveSettings();
+        applySettingsToUI();
+        updateMarqueeText();
+      });
+
+      els.bgColor.addEventListener('input', (event) => {
+        state.settings.bgColor = event.target.value;
+        saveSettings();
+        applySettingsToUI();
+      });
+
+      els.direction.addEventListener('change', (event) => {
+        state.settings.direction = event.target.value;
+        saveSettings();
+        applySettingsToUI();
+      });
+
+      els.bgAnimation.addEventListener('change', (event) => {
+        state.settings.bgAnimation = event.target.value;
+        saveSettings();
+        updateBackgroundAnimation();
+      });
+
+      els.messageInput.addEventListener('input', () => {
+        const text = els.messageInput.value;
+        if (!state.messages.length) return;
+        state.messages[state.activeIndex] = text;
+        saveMessages();
+        renderMessageList();
+        updateMarqueeText();
+      });
+
+      els.applyMessageBtn.addEventListener('click', applyCurrentMessage);
+      els.addMessageBtn.addEventListener('click', addMessage);
+
+      els.fullscreenBtn.addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          console.warn('전체화면 전환 실패:', error);
+        }
+      });
+
+      document.addEventListener('keydown', handleKeydown);
+
+      // 모바일 화면 회전 감지
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          // 화면 회전 후 레이아웃 재계산을 위해 약간의 지연 필요
+          updateMarqueeText();
+        }, 100);
+      });
+
+      // 리사이즈 이벤트 감지 (화면 크기 변경)
+      window.addEventListener('resize', () => {
+        // 필요시 레이아웃 조정
+      });
+    }
+
+    function init() {
+      readQueryMessages();
+      applySettingsToUI();
+      renderMessageList();
+      updateActiveMessageUI();
+      bindEvents();
+      updatePanelStatus();
+      updateBackgroundAnimation();
+      startRotationTimer();
+      requestAnimationFrame(updateAnimationFrame);
+    }
+
+    init();
+  </script>
+</body>
+</html>
