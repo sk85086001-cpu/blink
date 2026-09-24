@@ -18,7 +18,7 @@
       --accent-color: #46f0ff;
       --shadow-color: rgba(97, 255, 152, 0.65);
       --speed: 90;
-      --font-size: 132;
+      --font-size: 850;
       --panel-width: 380px;
     }
 
@@ -436,7 +436,7 @@
     @media (max-height: 600px) and (orientation: landscape) {
       /* 글자 크기 자동 감소 */
       .marquee-track span {
-        font-size: clamp(40px, 12vh, 120px) !important;
+        font-size: min(var(--font-size-px, 850px), 88vh) !important;
       }
 
       /* 설정 패널 높이 조정 */
@@ -512,8 +512,8 @@
         </div>
 
         <div class="field">
-          <label for="fontSizeRange">글자 크기: <span id="fontSizeValue">132</span>px</label>
-          <input id="fontSizeRange" type="range" min="60" max="220" value="132" />
+          <label for="fontSizeRange">글자 크기: <span id="fontSizeValue">850</span>px</label>
+          <input id="fontSizeRange" type="range" min="100" max="1400" value="850" />
         </div>
 
         <div class="field">
@@ -581,13 +581,13 @@
     // 전광판 설정 및 상태 관리
     // =========================
     const STORAGE_KEYS = {
-      settings: 'ledBoardSettings',
+      settings: 'ledBoardSettings_v3',
       messages: 'ledBoardMessages'
     };
 
     const defaultSettings = {
       fontStyle: "Orbitron, sans-serif",
-      fontSize: 132,
+      fontSize: 850,
       speed: 90,
       textColor: '#a7ff5c',
       bgColor: '#060b0d',
@@ -633,7 +633,16 @@
 
     function loadSettings() {
       const saved = localStorage.getItem(STORAGE_KEYS.settings);
-      if (!saved) return { ...defaultSettings };
+      if (!saved) {
+        // 이전 버전 설정은 글자 크기만 빼고 이어받기
+        try {
+          const legacySaved = localStorage.getItem('ledBoardSettings_v2') || localStorage.getItem('ledBoardSettings');
+          const { fontSize, ...legacy } = JSON.parse(legacySaved) || {};
+          return { ...defaultSettings, ...legacy };
+        } catch (error) {
+          return { ...defaultSettings };
+        }
+      }
       try {
         return { ...defaultSettings, ...JSON.parse(saved) };
       } catch (error) {
@@ -758,7 +767,8 @@
       els.marqueeText.textContent = repeatedText;
       els.marqueeText.style.fontFamily = state.settings.fontStyle;
       els.marqueeText.style.color = state.settings.textColor;
-      els.marqueeText.style.fontSize = `${state.settings.fontSize}px`;
+      els.marqueeText.style.fontSize = `min(${state.settings.fontSize}px, 90vh)`;
+      els.marqueeText.style.setProperty('--font-size-px', `${state.settings.fontSize}px`);
     }
 
     function addMessage() {
